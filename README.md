@@ -353,6 +353,7 @@ Detailed decision records are cataloged in `docs/adr/`:
 - [ADR-0003: Tool-Free Correlation & Deterministic Evaluation Gate](docs/adr/0003-tool-free-correlation-and-deterministic-evaluation-gate.md)
 - [ADR-0004: Model Profiles, Fallback Chains & Resilience Guardrails](docs/adr/0004-model-profiles-and-resilience-guardrails.md)
 - [ADR-0005: Post-Investigation Chat & Continuous Feedback Loop](docs/adr/0005-post-investigation-chat-and-feedback-loop.md)
+- [ADR-0006: Official LangGraph, Pydantic-AI Integration & Evals Suite](docs/adr/0006-official-langgraph-and-pydantic-ai-migration.md)
 
 ---
 

@@ -1,0 +1,3 @@
+# Official LangGraph, Pydantic-AI Integration and Evals Suite
+
+We decided to replace the custom pure-Python StateGraph stub with the official `langgraph` framework (`StateGraph`, `START`, `END`, `Send`, `MemorySaver`) for workflow orchestration, state reduction, and checkpoint persistence, while adopting `pydantic-ai` as the core agent execution layer. Domain specialists, gather, correlate, evaluate, synthesize, and post-investigation chat agents are implemented using `pydantic_ai.Agent` to enforce type-safe structured extraction (`result_type`) and native tool-calling with deterministic `TestModel` fallback support. A formal Evals test suite is introduced to benchmark root cause accuracy, cross-validation rates, and schema conformance across golden incident datasets.

@@ -4,18 +4,30 @@ from typing import Any
 import uuid
 from shepherd.domain.schemas import FinalReport, IncidentContext, FeedbackReview, InvestigationType
 from shepherd.graph.builder import build_investigation_graph
-from shepherd.graph.engine import BaseCheckpointer, MemorySaver
+from shepherd.graph.engine import ShepherdMemorySaver
+from langgraph.checkpoint.base import BaseCheckpointSaver
 from shepherd.agents.chat import PostInvestigationChatAgent
 
 
 class ShepherdRouter:
     """Coordinates entry between new automated investigations and stateful post-investigation chat."""
 
-    def __init__(self, checkpointer: BaseCheckpointer | None = None):
-        self.checkpointer = checkpointer or MemorySaver()
+    def __init__(self, checkpointer: BaseCheckpointSaver | None = None):
+        self.checkpointer = checkpointer or ShepherdMemorySaver()
         self.graph = build_investigation_graph(checkpointer=self.checkpointer)
         self.chat_agent = PostInvestigationChatAgent()
         self.feedback_store: list[FeedbackReview] = []
+
+    async def get_state(self, investigation_id: str) -> dict[str, Any] | None:
+        """Retrieves investigation state snapshot by ID."""
+        config = {"configurable": {"thread_id": investigation_id}}
+        state_snapshot = self.graph.get_state(config)
+        if state_snapshot and state_snapshot.values:
+            return dict(state_snapshot.values)
+        get_state_fn = getattr(self.checkpointer, "get_state", None)
+        if callable(get_state_fn):
+            return await get_state_fn(investigation_id)
+        return None
 
     async def start_investigation(
         self,
@@ -53,7 +65,7 @@ class ShepherdRouter:
         message: str,
     ) -> str:
         """Handles interactive follow-up questions on an existing completed investigation."""
-        saved_state = await self.checkpointer.get_state(investigation_id)
+        saved_state = await self.get_state(investigation_id)
         if not saved_state:
             return f"Investigation '{investigation_id}' not found. Please start an investigation first."
 
@@ -74,14 +86,13 @@ class ShepherdRouter:
             conversation_history=chat_history,
         )
 
-        # Update chat history in checkpoint
+        # Update chat history in LangGraph checkpoint
+        config = {"configurable": {"thread_id": investigation_id}}
         updated_history = list(chat_history)
         updated_history.append({"role": "user", "content": message})
         updated_history.append({"role": "assistant", "content": reply})
 
-        saved_state["chat_history"] = updated_history
-        await self.checkpointer.put_state(investigation_id, saved_state)
-
+        self.graph.update_state(config, {"chat_history": updated_history})
         return reply
 
     def submit_feedback(self, feedback: FeedbackReview) -> None:
@@ -92,6 +103,7 @@ class ShepherdRouter:
         if not self.feedback_store:
             return 0.0
         return sum(f.rating for f in self.feedback_store) / len(self.feedback_store)
+
 
 # Backward compatibility alias
 SREEntryRouter = ShepherdRouter

@@ -6,12 +6,14 @@ from shepherd.domain.schemas import (
     IncidentContext,
     InvestigationBrief,
     CorrelationResult,
-    FinalReport,
     InvestigationType,
-    ConfidenceLevel,
+    DeepDiveTask,
 )
 from shepherd.graph.state import InvestigationState, SpecialistDispatch
-from shepherd.graph.engine import StateGraph, Send, BaseCheckpointer, CompiledStateGraph
+from langgraph.graph import StateGraph, START, END
+from langgraph.types import Send
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.graph.state import CompiledStateGraph
 from shepherd.agents.gather import GatherAgent
 from shepherd.agents.specialists.registry import specialist_registry
 from shepherd.agents.correlate import CorrelateAgent
@@ -156,7 +158,7 @@ async def deep_dive_node(state: InvestigationState) -> dict[str, Any]:
 
     # Execute deep dive dispatches directly
     dispatches = DeepDiveDispatcher.prepare_deep_dive_targets(
-        [t if isinstance(t, Any) else t for t in tasks_data]
+        [DeepDiveTask.model_validate(t) if isinstance(t, dict) else t for t in tasks_data]
     )
 
     deep_dive_tasks = []
@@ -221,7 +223,7 @@ async def synthesize_node(state: InvestigationState) -> dict[str, Any]:
     }
 
 
-def build_investigation_graph(checkpointer: BaseCheckpointer | None = None) -> CompiledStateGraph:
+def build_investigation_graph(checkpointer: BaseCheckpointSaver | None = None) -> CompiledStateGraph:
     """Builds and compiles the SRE AI LangGraph investigation pipeline."""
     graph = StateGraph(InvestigationState)
 
@@ -233,12 +235,14 @@ def build_investigation_graph(checkpointer: BaseCheckpointer | None = None) -> C
     graph.add_node("deep_dive", deep_dive_node)
     graph.add_node("synthesize", synthesize_node)
 
-    # Set entry point
-    graph.set_entry_point("gather")
+    # Entry edge
+    graph.add_edge(START, "gather")
 
-    # Gather fans out to specialists via Send(), then continues to correlate
-    graph.add_conditional_edges("gather", route_to_specialists)
-    graph.add_edge("gather", "correlate")
+    # Gather fans out to specialists via Send()
+    graph.add_conditional_edges("gather", route_to_specialists, ["run_specialist"])
+
+    # Specialist outputs flow into correlation
+    graph.add_edge("run_specialist", "correlate")
 
     # Correlate moves to evaluate
     graph.add_edge("correlate", "evaluate")
@@ -255,5 +259,8 @@ def build_investigation_graph(checkpointer: BaseCheckpointer | None = None) -> C
 
     # Deep dive loops back to correlate for re-synthesis
     graph.add_edge("deep_dive", "correlate")
+
+    # Synthesize completes graph
+    graph.add_edge("synthesize", END)
 
     return graph.compile(checkpointer=checkpointer)
