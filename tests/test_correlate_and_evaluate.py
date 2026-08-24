@@ -1,14 +1,14 @@
 """Tests for Correlate, Evaluate Gate, and Deep Dive routing."""
 
 import pytest
-from sre_ai.domain.schemas import (
+from shepherd.domain.schemas import (
     CorrelationResult,
     ConfidenceLevel,
     RootCauseCategory,
     InvestigationType,
 )
-from sre_ai.agents.evaluate import route_after_evaluation
-from sre_ai.agents.correlate import CorrelateAgent
+from shepherd.agents.evaluate import route_after_evaluation
+from shepherd.agents.correlate import CorrelateAgent
 
 
 def test_evaluate_gate_deterministic_routing():

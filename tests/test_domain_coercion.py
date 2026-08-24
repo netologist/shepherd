@@ -1,11 +1,11 @@
 """Tests for safe coercion validators and domain schemas."""
 
-from sre_ai.domain.coercion import (
+from shepherd.domain.coercion import (
     safe_float_coerce,
     safe_int_coerce,
     safe_str_list_coerce,
 )
-from sre_ai.domain.schemas import (
+from shepherd.domain.schemas import (
     MetricsFindings,
     TraceFindings,
     KubernetesFindings,

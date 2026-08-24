@@ -1,11 +1,11 @@
 """Tests for domain-scoped MCP servers, composite tools, and guardrails."""
 
 import pytest
-from sre_ai.mcp.metrics import create_metrics_mcp_client
-from sre_ai.mcp.kubernetes import create_kubernetes_mcp_client
-from sre_ai.mcp.traces import create_traces_mcp_client
-from sre_ai.mcp.troubleshoot import create_troubleshoot_mcp_client
-from sre_ai.agents.guardrails import ToolGuardrailTracker
+from shepherd.mcp.metrics import create_metrics_mcp_client
+from shepherd.mcp.kubernetes import create_kubernetes_mcp_client
+from shepherd.mcp.traces import create_traces_mcp_client
+from shepherd.mcp.troubleshoot import create_troubleshoot_mcp_client
+from shepherd.agents.guardrails import ToolGuardrailTracker
 
 
 @pytest.mark.asyncio

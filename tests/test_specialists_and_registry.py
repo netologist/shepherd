@@ -1,9 +1,9 @@
 """Tests for specialist execution and registry resolution."""
 
 import pytest
-from sre_ai.domain.schemas import InvestigationBrief, MetricsFindings
-from sre_ai.agents.specialists.registry import specialist_registry
-from sre_ai.agents.specialists.metrics import MetricsSpecialist
+from shepherd.domain.schemas import InvestigationBrief, MetricsFindings
+from shepherd.agents.specialists.registry import specialist_registry
+from shepherd.agents.specialists.metrics import MetricsSpecialist
 
 
 def test_specialist_registry_alias_normalization():

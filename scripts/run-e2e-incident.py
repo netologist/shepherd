@@ -8,8 +8,8 @@ from pathlib import Path
 root_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(root_dir / "src"))
 
-from sre_ai.graph.router import SREEntryRouter
-from sre_ai.domain.schemas import InvestigationType, FeedbackReview
+from shepherd.graph.router import SREEntryRouter
+from shepherd.domain.schemas import InvestigationType, FeedbackReview
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table

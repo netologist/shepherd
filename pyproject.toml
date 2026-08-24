@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "sre-ai"
+name = "shepherd"
 version = "0.1.0"
 description = "Automated SRE AI Incident Investigation and Root Cause Analysis"
 readme = "README.md"

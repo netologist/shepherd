@@ -2,9 +2,9 @@
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from sre_ai.graph.router import SREEntryRouter
-from sre_ai.domain.schemas import InvestigationType, FeedbackReview
-from sre_ai.server.app import app
+from shepherd.graph.router import SREEntryRouter
+from shepherd.domain.schemas import InvestigationType, FeedbackReview
+from shepherd.server.app import app
 
 
 @pytest.mark.asyncio

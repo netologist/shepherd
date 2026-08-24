@@ -52,6 +52,6 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
-          tags: sre-ai:latest
+          tags: shepherd:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
