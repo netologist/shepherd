@@ -1,0 +1,3 @@
+# Model Profiles, Fallback Chains and Production Resilience Guardrails
+
+We decided to decouple LLM selection by introducing phase-specific Model Profiles (fast models for gather/prefetch, balanced models for specialist loops, and deep-reasoning models for correlation/synthesis), backed by a cascading multi-model fallback chain and a deterministic raw-data fallback report. To safeguard against unbounded tool iteration and schema validation crashes, runtime guardrails (SafeInt/SafeFloat coercion, duplicate tool-call short-circuiting, and 50KB/800KB payload caps) are enforced at the execution boundary.

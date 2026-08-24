@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce-demo
+  labels:
+    environment: production
+    team: ordering
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-gateway
+  namespace: ecommerce-demo
+  labels:
+    app: frontend-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend-gateway
+  template:
+    metadata:
+      labels:
+        app: frontend-gateway
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          ports:
+            - containerPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-api
+  namespace: ecommerce-demo
+  labels:
+    app: order-api
+    domain: ordering
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: order-api
+  template:
+    metadata:
+      labels:
+        app: order-api
+        domain: ordering
+    spec:
+      containers:
+        - name: order-worker
+          image: python:3.11-alpine
+          command:
+            - "python"
+            - "-c"
+            - |
+              import time, sys
+              print("Starting order-worker processing queue...", flush=True)
+              time.sleep(2)
+              print("Simulating burst payload queue allocation (64MB)...", flush=True)
+              # Allocate memory beyond 32Mi limit to trigger OOMKill
+              data = bytearray(64 * 1024 * 1024)
+              print("Allocated data successfully", flush=True)
+              time.sleep(60)
+          resources:
+            requests:
+              cpu: 50m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+          ports:
+            - containerPort: 8080

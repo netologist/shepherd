@@ -1,0 +1,58 @@
+name: E2E - Live Kubernetes Kind Investigation
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  kind-e2e:
+    name: Kind Cluster Multi-Agent RCA Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Create Kubernetes Kind Cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: sre-ai-e2e
+          wait: 120s
+
+      - name: Verify Kind Cluster Connectivity
+        run: |
+          kubectl cluster-info
+          kubectl get nodes -o wide
+
+      - name: Deploy Incident Scenario (OOMKilled & CrashLoopBackOff)
+        run: |
+          kubectl apply -f manifests/scenario-oom-incident.yaml
+          echo "Waiting 20 seconds for order-api pods to exceed memory limit and trigger OOMKill..."
+          sleep 20
+          kubectl get pods -n ecommerce-demo -o wide
+          kubectl get events -n ecommerce-demo --field-selector type=Warning || true
+
+      - name: Run Autonomous Multi-Agent Incident Investigation
+        env:
+          PYTHONPATH: src
+        run: |
+          python scripts/run-e2e-incident.py
+
+      - name: Run E2E Test Suite Against Live Cluster
+        env:
+          PYTHONPATH: src
+        run: |
+          pytest tests/test_investigation_e2e_and_chat.py -v
