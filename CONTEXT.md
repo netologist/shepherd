@@ -1,4 +1,4 @@
-# SRE AI Incident Investigation
+# Shepherd: SRE Incident Investigation
 
 An automated multi-agent incident investigation system that automates root cause analysis (RCA), separates symptoms from causes, and enables post-investigation chat for SRE and on-call teams.
 

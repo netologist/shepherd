@@ -1,8 +1,8 @@
-# High-Level Architecture: SRE AI Agents
+# High-Level Architecture: Shepherd
 
 ## 1. System Overview
 
-SRE AI Agents is an automated root-cause analysis (RCA) and troubleshooting platform designed to investigate production incidents, correlate cross-domain telemetry, and produce structured incident reports without human intervention. Once an investigation is complete, it transitions into an interactive post-investigation assistant.
+Shepherd is an automated root-cause analysis (RCA) and troubleshooting platform designed to investigate production incidents, correlate cross-domain telemetry, and produce structured incident reports without human intervention. Once an investigation is complete, it transitions into an interactive post-investigation assistant.
 
 The system is **not a Kubernetes Operator** (it does not manage custom resource definitions or execute mutating reconciliation loops). Instead, it runs as a containerized service (FastAPI application + background async workers) with read-only access to external observability backends and infrastructure APIs.
 
