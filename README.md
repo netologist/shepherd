@@ -10,7 +10,7 @@
 [![Architecture](https://img.shields.io/badge/Architecture-LangGraph%20%2B%20Scoped%20MCP-orange.svg)](docs/architecture/high-level-architecture.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-*Inspired by and built upon the production architecture documented in [Trendyol Tech: SRE AI Agents in Trendyol](https://medium.com/trendyol-tech/sre-ai-agents-in-trendyol-098057b9dd31) by Güven Altunsoy.*
+*Inspired by and built upon the production architecture documented in [Trendyol Tech: SRE AI Agents in Trendyol](https://medium.com/trendyol-tech/sre-ai-agents-in-trendyol-098057b9dd31).*
 
 </div>
 
@@ -359,7 +359,7 @@ Detailed decision records are cataloged in `docs/adr/`:
 
 ## 📜 References
 
-- Altunsoy, Güven. *"SRE AI Agents in Trendyol"*. Trendyol Tech, Medium (2026). [Read Article](https://medium.com/trendyol-tech/sre-ai-agents-in-trendyol-098057b9dd31)
+- *"SRE AI Agents in Trendyol"*. Trendyol Tech, Medium (2026). [Read Article](https://medium.com/trendyol-tech/sre-ai-agents-in-trendyol-098057b9dd31)
 
 ---
 
