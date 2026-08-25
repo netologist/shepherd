@@ -4,8 +4,8 @@
 
 ### Autonomous SRE AI Multi-Agent Incident Investigation & Root Cause Analysis Platform
 
-[![CI - Build & Test](https://github.com/hozgan/shepherd/actions/workflows/ci.yml/badge.svg)](https://github.com/hozgan/shepherd/actions/workflows/ci.yml)
-[![E2E - Kubernetes Kind](https://github.com/hozgan/shepherd/actions/workflows/e2e.yml/badge.svg)](https://github.com/hozgan/shepherd/actions/workflows/e2e.yml)
+[![CI - Build & Test](https://github.com/netologist/shepherd/actions/workflows/ci.yml/badge.svg)](https://github.com/netologist/shepherd/actions/workflows/ci.yml)
+[![E2E - Kubernetes Kind](https://github.com/netologist/shepherd/actions/workflows/e2e.yml/badge.svg)](https://github.com/netologist/shepherd/actions/workflows/e2e.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://www.python.org/downloads/)
 [![Architecture](https://img.shields.io/badge/Architecture-LangGraph%20%2B%20Scoped%20MCP-orange.svg)](docs/architecture/high-level-architecture.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -210,7 +210,7 @@ shepherd/
 
 ```bash
 # Clone repository
-git clone https://github.com/hozgan/shepherd.git
+git clone https://github.com/netologist/shepherd.git
 cd shepherd
 
 # Install in editable mode with development dependencies
