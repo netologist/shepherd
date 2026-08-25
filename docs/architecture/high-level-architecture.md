@@ -24,7 +24,7 @@ flowchart TD
             TracesSpec["Traces Specialist"]
             K8sSpec["Kubernetes Specialist"]
             TroubleshootSpec["Troubleshoot Specialist"]
-            TopologySpec["CUJ / Topology Specialist"]
+            PlaybookSpec["Playbook/Runbook Specialist (LlamaIndex ReActAgent)"]
             ExtSpec["External Platform Agents"]
         end
         
@@ -40,6 +40,7 @@ flowchart TD
         TracesMCP["traces-mcp (Jaeger / OpenTelemetry)"]
         K8sMCP["k8s-mcp (Kubernetes API - Read Only)"]
         TroubleshootMCP["troubleshoot-mcp (Pre-check Reports)"]
+        PlaybookKB["playbook-kb (LlamaIndex FunctionTools + Runbook Corpus)"]
     end
 
     subgraph StatePersistence["4. State & Checkpoints"]
@@ -58,6 +59,7 @@ flowchart TD
     TracesSpec <--> TracesMCP
     K8sSpec <--> K8sMCP
     TroubleshootSpec <--> TroubleshootMCP
+    PlaybookSpec <--> PlaybookKB
     
     ParallelSpecialists -->|Typed Findings| CorrelateAgent
     CorrelateAgent -->|Correlation Result| EvaluateGate
@@ -80,12 +82,13 @@ flowchart TD
 |---|---|---|
 | **Entry Router** | Inspects thread ID and determines whether to start a new investigation or route to existing post-investigation chat. | No |
 | **Gather Agent & Prefetch** | Extracts incident/troubleshooting IDs via regex, prefetches initial summaries, and outputs an `InvestigationBrief`. | Prefetch MCPs only |
-| **Specialist Agents** | Domain-isolated investigators running a 10-15 turn tool loop followed by structured Pydantic extraction. | Domain-scoped MCP |
+| **Telemetry Specialists** | Domain-isolated investigators (metrics, traces, k8s, troubleshoot) running a 10-15 turn MCP tool loop followed by structured Pydantic extraction. | Domain-scoped MCP |
+| **Playbook/Runbook Specialist** | LlamaIndex ReActAgent searching the SRE playbook knowledge base to return ranked runbooks, ordered remediation steps, and escalation contacts. Returns `PlaybookFindings`. | LlamaIndex FunctionTools (in-process KB; upgradeable to vector store) |
 | **Correlate Agent** | Cross-references findings across independent specialists to filter false-positive noise and confirm root-cause convergence. | **None (Zero Tool Access)** |
-| **Evaluation Gate** | Pure deterministic Python function applying cross-validation rules and bounding deep dives to $\le 2$ rounds. | **None** |
+| **Evaluation Gate** | Pure deterministic Python function applying cross-validation rules and bounding deep dives to ≤ 2 rounds. | **None** |
 | **Deep Dive Agent** | Generates targeted follow-up questions for named specialists to fill specific evidence gaps. | **None** |
 | **Synthesize Agent** | Assembles the final structured incident report with timeline, evidence chain, and actionable recommendations. | **None** |
-| **Chat Agent** | Allows SRE engineers to interrogate the investigation report, re-run specialists, or perform live checks. | Full Telemetry MCPs |
+| **Chat Agent** | Allows SRE engineers to interrogate the investigation report, re-run specialists, or perform live checks. Multi-turn bounded tool loop (max 8 iterations). | Full Telemetry MCPs |
 
 ---
 

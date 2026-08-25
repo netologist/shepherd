@@ -5,23 +5,18 @@
 LangGraph state is shared across parallel nodes via custom reducers to prevent `InvalidUpdateError` during parallel fan-out (`Send()`).
 
 ```mermaid
-classDiagram
     class InvestigationState {
         +str investigation_id
         +InvestigationType investigation_type
         +str raw_input
         +IncidentContext incident_context
         +InvestigationBrief investigation_brief
-        +MetricsFindings metrics_findings
-        +TraceFindings trace_findings
-        +KubernetesFindings kubernetes_findings
-        +TroubleshootFindings troubleshoot_findings
-        +dict external_findings
+        +dict findings_by_domain
         +CorrelationResult correlation_result
         +int deep_dive_count
         +list[DeepDiveTask] suggested_deep_dives
         +FinalReport final_report
-        +list[BaseMessage] messages
+        +list[dict] chat_history
         +str current_phase
     }
 
@@ -47,6 +42,30 @@ classDiagram
         +list[str] warning_events
     }
 
+    class PlaybookFindings {
+        +str incident_summary
+        +list[PlaybookMatch] matched_playbooks
+        +PlaybookMatch recommended_runbook
+        +list[str] escalation_path
+        +list[str] notes
+    }
+
+    class PlaybookMatch {
+        +str playbook_id
+        +str title
+        +float relevance_score
+        +str summary
+        +list[RunbookStep] applicable_steps
+    }
+
+    class RunbookStep {
+        +int step_number
+        +str action
+        +str command
+        +str expected_outcome
+        +str rollback
+    }
+
     class CorrelationResult {
         +str root_cause_summary
         +RootCauseCategory category
@@ -60,35 +79,46 @@ classDiagram
     InvestigationState *-- MetricsFindings
     InvestigationState *-- TraceFindings
     InvestigationState *-- KubernetesFindings
+    InvestigationState *-- PlaybookFindings
     InvestigationState *-- CorrelationResult
-```
+    PlaybookFindings *-- PlaybookMatch
+    PlaybookMatch *-- RunbookStep
 
 ### LangGraph State Reducer Definition
 
 ```python
-from typing import Annotated, TypedDict
-from langchain_core.messages import BaseMessage
-from langgraph.graph.message import add_messages
+from typing import Annotated, Any, TypedDict
 
-def last_non_none(current: any, update: any) -> any:
+def last_non_none(current: Any, update: Any) -> Any:
     """Last-writer-wins reducer for parallel specialist state keys."""
     return update if update is not None else current
+
+def merge_dict_reducer(
+    current: dict[str, Any] | None,
+    update: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Merges parallel specialist findings into a combined dict."""
+    result = dict(current or {})
+    if update:
+        result.update(update)
+    return result
 
 class InvestigationState(TypedDict):
     investigation_id: str
     investigation_type: str
+    raw_input: str
     incident_context: Annotated[dict | None, last_non_none]
     investigation_brief: Annotated[dict | None, last_non_none]
-    metrics_findings: Annotated[dict | None, last_non_none]
-    trace_findings: Annotated[dict | None, last_non_none]
-    kubernetes_findings: Annotated[dict | None, last_non_none]
-    troubleshoot_findings: Annotated[dict | None, last_non_none]
-    external_findings: Annotated[dict, last_non_none]
+    prefetched_data: Annotated[dict[str, str], merge_dict_reducer]
+    # All domain findings keyed by specialist name (metrics, traces, k8s,
+    # troubleshoot, playbook, …) are merged here by parallel Send() nodes.
+    findings_by_domain: Annotated[dict[str, Any], merge_dict_reducer]
     correlation_result: Annotated[dict | None, last_non_none]
+    evaluation_result: Annotated[dict | None, last_non_none]
     deep_dive_count: Annotated[int, last_non_none]
-    suggested_deep_dives: Annotated[list[dict], last_non_none]
+    suggested_deep_dives: Annotated[list[dict[str, Any]], last_non_none]
     final_report: Annotated[dict | None, last_non_none]
-    messages: Annotated[list[BaseMessage], add_messages]
+    chat_history: Annotated[list[dict[str, str]], last_non_none]
     current_phase: Annotated[str, last_non_none]
 ```
 
@@ -174,3 +204,59 @@ flowchart LR
 2. **Character Budget:** Per-result cap of 50,000 characters; cumulative session cap of 800,000 characters. When exceeded, tool bindings are removed, forcing immediate conclusion.
 3. **Safe Coercion Validators:** Pydantic models use `@field_validator(mode="before")` on float/integer fields to safely map `"<UNKNOWN>"`, `"-"`, `"N/A"` to `0` or `None`.
 4. **Three-Way Race Cancellation:** Every async node execution races against an `asyncio.Event` triggered by user cancellation or wall-clock timeouts.
+
+---
+
+## 4. LlamaIndex Playbook/Runbook Agent — Execution Flow
+
+The `PlaybookSpecialist` bypasses the standard two-phase MCP tool loop and delegates
+entirely to `PlaybookRunbookAgent`, which wraps a `llama_index.core.agent.ReActAgent`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant LG as LangGraph run_specialist node
+    participant PS as PlaybookSpecialist
+    participant PRA as PlaybookRunbookAgent (LlamaIndex ReActAgent)
+    participant SP as search_playbooks (FunctionTool)
+    participant GPS as get_playbook_steps (FunctionTool)
+    participant GEP as get_escalation_path (FunctionTool)
+
+    LG->>PS: execute(brief, additional_instructions)
+    PS->>PS: Build IncidentContext from brief
+    PS->>PRA: execute(context, correlation=None)
+    PRA->>PRA: _build_llama_llm() — Anthropic/OpenAI/Gemini/MockLLM
+    PRA->>PRA: agent.run(user_msg=query)
+
+    loop ReAct Reasoning Loop (max 6 iterations)
+        PRA->>SP: Thought: search for OOMKill playbook
+        SP-->>PRA: Observation: [PB-001] OOMKill Remediation (score=0.80)
+        PRA->>GPS: Action: get_playbook_steps("PB-001")
+        GPS-->>PRA: Observation: Step 1: kubectl describe pod ...
+    end
+
+    alt No playbook match (score == 0)
+        PRA->>GEP: get_escalation_path("infrastructure")
+        GEP-->>PRA: #infra-oncall, infra-team@company.com
+    end
+
+    PRA->>PS: AgentOutput.response (free text)
+    PS->>PS: _parse_to_findings() — extract PlaybookMatch IDs, build RunbookSteps
+    PS->>LG: PlaybookFindings (structured)
+```
+
+### Fallback Chain
+
+| Condition | Behaviour |
+|---|---|
+| LLM API key present | LlamaIndex ReActAgent runs with configured provider |
+| No API keys | `MockLLM` — agent still calls FunctionTools deterministically |
+| `asyncio.TimeoutError` (>60 s) | `_keyword_fallback_response()` runs direct keyword match |
+| Any agent exception | Same keyword fallback; error logged at `ERROR` level |
+| Agent cites no playbook IDs | `_parse_to_findings()` falls back to keyword-scored top-2 |
+
+### Corpus Upgrade Path (Phase 2)
+
+Replace `search_playbooks` body with a vector-store query (pgvector / Qdrant / ChromaDB).
+No changes required to `PlaybookRunbookAgent`, `PlaybookSpecialist`, `PlaybookFindings`,
+or the LangGraph graph — the `FunctionTool` signature is the stable API boundary.

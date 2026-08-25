@@ -4,9 +4,16 @@ import asyncio
 import json
 import os
 import logging
-from typing import Any, Type, TypeVar
+from typing import Any, Type, TypeVar, Sequence
 from pydantic import BaseModel
 from pydantic_ai import Agent
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    UserPromptPart,
+    TextPart,
+)
 from pydantic_ai.models.test import TestModel
 from shepherd.config.settings import settings
 
@@ -53,6 +60,44 @@ class UnifiedLLMClient:
             or os.getenv("GEMINI_API_KEY")
         )
 
+    @staticmethod
+    def _build_message_history(messages: list[dict[str, str]]) -> tuple[str, str, list[ModelMessage]]:
+        """Splits a flat messages list into (system_prompt, final_user_prompt, prior_history).
+
+        Pydantic-AI expects:
+        - system_prompt injected at Agent construction
+        - user_prompt as the final user turn passed to agent.run()
+        - message_history as ModelMessage pairs for prior turns
+        """
+        sys_prompt_parts: list[str] = []
+        history: list[ModelMessage] = []
+        pending_user: str | None = None
+
+        non_system = [m for m in messages if m.get("role") != "system"]
+        for m in messages:
+            if m.get("role") == "system":
+                sys_prompt_parts.append(m.get("content", ""))
+
+        # Walk non-system messages: pair user+assistant turns into history,
+        # leaving the last user message as the live prompt.
+        for m in non_system:
+            role = m.get("role")
+            content = m.get("content", "")
+            if role == "user":
+                if pending_user is not None:
+                    # Unpaired user with no following assistant — flush to history
+                    history.append(ModelRequest(parts=[UserPromptPart(content=pending_user)]))
+                pending_user = content
+            elif role == "assistant":
+                if pending_user is not None:
+                    history.append(ModelRequest(parts=[UserPromptPart(content=pending_user)]))
+                    pending_user = None
+                history.append(ModelResponse(parts=[TextPart(content=content)]))
+
+        final_user = pending_user or "Proceed with analysis."
+        sys_prompt = "\n".join(sys_prompt_parts).strip() or "You are an SRE investigation agent."
+        return sys_prompt, final_user, history
+
     async def invoke_chat(
         self,
         messages: list[dict[str, str]],
@@ -61,38 +106,34 @@ class UnifiedLLMClient:
         tools: list[dict[str, Any]] | None = None,
         timeout_seconds: int = 90,
     ) -> LLMResponse:
-        """Invokes chat model with fallback chain using Pydantic-AI."""
+        """Invokes chat model with fallback chain using Pydantic-AI, preserving full conversation history."""
         if self.mock_mode or not self.has_api_keys():
             return self._mock_chat_response(messages, tools)
 
+        sys_prompt, final_user, history = self._build_message_history(messages)
         models_to_try = [model] + (fallback_models or [])
-        last_err: Exception | None = None
-
-        sys_prompt = ""
-        user_content = ""
-        for m in messages:
-            if m.get("role") == "system":
-                sys_prompt += m.get("content", "") + "\n"
-            elif m.get("role") == "user":
-                user_content += m.get("content", "") + "\n"
 
         for current_model in models_to_try:
             resolved_model = resolve_pydantic_ai_model(current_model)
             try:
                 agent = Agent(
                     model=resolved_model,
-                    system_prompt=sys_prompt.strip() or "You are an SRE investigation agent.",
+                    system_prompt=sys_prompt,
                 )
-
                 run_result = await asyncio.wait_for(
-                    agent.run(user_content.strip() or "Proceed with analysis."),
+                    agent.run(
+                        final_user,
+                        message_history=history or None,
+                    ),
                     timeout=timeout_seconds,
                 )
-
                 content_str = str(run_result.output) if run_result.output is not None else ""
                 return LLMResponse(content=content_str, tool_calls=[], raw=run_result)
-            except (ImportError, Exception) as api_err:
-                logger.debug("Pydantic-AI call failed on %s (%s): %s; falling back", current_model, resolved_model, api_err)
+            except Exception as api_err:
+                logger.debug(
+                    "Pydantic-AI chat failed on %s (%s): %s; falling back",
+                    current_model, resolved_model, api_err,
+                )
                 continue
 
         logger.info("All live model providers exhausted, using deterministic fallback response")
@@ -115,13 +156,7 @@ class UnifiedLLMClient:
                 return self._build_default_schema_instance(schema, messages)
 
         models_to_try = [model] + (fallback_models or [])
-        sys_prompt = ""
-        user_content = ""
-        for m in messages:
-            if m.get("role") == "system":
-                sys_prompt += m.get("content", "") + "\n"
-            elif m.get("role") == "user":
-                user_content += m.get("content", "") + "\n"
+        sys_prompt, final_user, history = self._build_message_history(messages)
 
         for current_model in models_to_try:
             try:
@@ -129,14 +164,15 @@ class UnifiedLLMClient:
                 agent = Agent(
                     model=resolved_model,
                     output_type=schema,
-                    system_prompt=sys_prompt.strip() or "Extract structured SRE findings adhering to the schema.",
+                    system_prompt=sys_prompt or "Extract structured SRE findings adhering to the schema.",
                 )
-
                 run_result = await asyncio.wait_for(
-                    agent.run(user_content.strip() or "Extract findings into schema."),
+                    agent.run(
+                        final_user or "Extract findings into schema.",
+                        message_history=history or None,
+                    ),
                     timeout=settings.llm_timeout_seconds,
                 )
-
                 if isinstance(run_result.output, schema):
                     return run_result.output
                 return schema.model_validate(run_result.output)

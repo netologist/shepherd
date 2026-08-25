@@ -1,5 +1,6 @@
 """Graph builder for SRE AI multi-agent investigation pipeline."""
 
+import asyncio
 import logging
 from typing import Any
 from shepherd.domain.schemas import (
@@ -172,7 +173,6 @@ async def deep_dive_node(state: InvestigationState) -> dict[str, Any]:
         deep_dive_tasks.append(run_specialist_node(payload))
 
     if deep_dive_tasks:
-        import asyncio
         results = await asyncio.gather(*deep_dive_tasks, return_exceptions=True)
         merged_findings = dict(state.get("findings_by_domain") or {})
         for res in results:

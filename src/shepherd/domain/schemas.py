@@ -221,3 +221,36 @@ class FeedbackReview(BaseModel):
     comment: str | None = Field(default=None, description="Optional user commentary")
     reviewer: str | None = Field(default=None, description="Reviewer email or handle")
     timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+
+class RunbookStep(BaseModel):
+    step_number: int = Field(description="Ordered step index (1-based)")
+    action: str = Field(description="Concrete remediation action to execute")
+    command: str | None = Field(default=None, description="Shell command or kubectl snippet if applicable")
+    expected_outcome: str = Field(description="Observable success criterion for this step")
+    rollback: str | None = Field(default=None, description="Rollback instruction if step fails")
+
+
+class PlaybookMatch(BaseModel):
+    playbook_id: str = Field(description="Matched playbook or runbook identifier")
+    title: str = Field(description="Human-readable playbook title")
+    relevance_score: float = Field(ge=0.0, le=1.0, description="Semantic similarity score [0,1]")
+    summary: str = Field(description="Why this playbook is relevant to the current incident")
+    applicable_steps: list[RunbookStep] = Field(default_factory=list, description="Filtered applicable remediation steps")
+
+
+class PlaybookFindings(BaseModel):
+    """Structured output from the PlaybookRunbook specialist."""
+    incident_summary: str = Field(default="", description="Incident description used for playbook lookup")
+    matched_playbooks: list[PlaybookMatch] = Field(
+        default_factory=list, description="Ranked list of matched playbooks/runbooks"
+    )
+    recommended_runbook: PlaybookMatch | None = Field(
+        default=None, description="Single best-fit runbook for immediate execution"
+    )
+    escalation_path: list[str] = Field(
+        default_factory=list, description="Escalation contacts or on-call rotation entries if no playbook fits"
+    )
+    notes: list[str] = Field(
+        default_factory=list, description="Analyst notes from playbook retrieval and reasoning"
+    )

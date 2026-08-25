@@ -1,11 +1,10 @@
 """Specialist registry with dynamic alias normalization and third-party plugin support."""
 
-from typing import Any
-import re
 from shepherd.agents.specialists.base import BaseSpecialist
-from shepherd.agents.specialists.metrics import MetricsSpecialist
-from shepherd.agents.specialists.traces import TracesSpecialist
 from shepherd.agents.specialists.kubernetes import KubernetesSpecialist
+from shepherd.agents.specialists.metrics import MetricsSpecialist
+from shepherd.agents.specialists.playbook import PlaybookSpecialist
+from shepherd.agents.specialists.traces import TracesSpecialist
 from shepherd.agents.specialists.troubleshoot import TroubleshootSpecialist
 
 
@@ -27,6 +26,12 @@ SPECIALIST_ALIASES: dict[str, str] = {
     "troubleshooting": "troubleshoot",
     "precheck": "troubleshoot",
     "static-checks": "troubleshoot",
+    # Playbook / runbook aliases
+    "runbook": "playbook",
+    "playbook-specialist": "playbook",
+    "runbook-specialist": "playbook",
+    "remediation": "playbook",
+    "sre-runbook": "playbook",
 }
 
 
@@ -42,6 +47,7 @@ class SpecialistRegistry:
         self.register(TracesSpecialist())
         self.register(KubernetesSpecialist())
         self.register(TroubleshootSpecialist())
+        self.register(PlaybookSpecialist())
 
     def register(self, specialist: BaseSpecialist) -> None:
         self._specialists[specialist.domain.lower()] = specialist
