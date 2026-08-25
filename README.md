@@ -359,7 +359,7 @@ Detailed decision records are cataloged in `docs/adr/`:
 
 ## 📜 References
 
-- *"SRE AI Agents in Trendyol"*. Trendyol Tech, Medium (2026). [Read Article](https://medium.com/trendyol-tech/sre-ai-agents-in-trendyol-098057b9dd31)
+- Altunsoy, Güven. *"SRE AI Agents in Trendyol"*. Trendyol Tech, Medium (2026). [Read Article](https://medium.com/trendyol-tech/sre-ai-agents-in-trendyol-098057b9dd31)
 
 ---
 

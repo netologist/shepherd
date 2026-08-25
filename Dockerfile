@@ -17,17 +17,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency definition
-COPY pyproject.toml .
+# Copy project files and source
+COPY pyproject.toml README.md CONTEXT.md ./
+COPY src/ src/
 
-# Install dependencies
+# Install dependencies and package
 RUN pip install --upgrade pip \
     && pip install -e ".[dev]"
-
-# Copy application source code
-COPY src/ src/
-COPY CONTEXT.md .
-
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
